@@ -112,8 +112,14 @@ def login():
 @app.route('/logout')
 def logout():
     """Handle logout of user."""
+    # Call the do_logout function to clear the session
+    do_logout()
 
-    # IMPLEMENT THIS
+    # Flash a success message
+    flash("You have been logged out successfully.", "success")
+
+    # Redirect to the login page
+    return redirect('/login')
 
 
 ##############################################################################
