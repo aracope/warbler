@@ -3,8 +3,8 @@ import os
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
-
-from forms import UserAddForm, LoginForm, MessageForm
+from flask_bcrypt import Bcrypt
+from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
 from models import db, connect_db, User, Message
 
 CURR_USER_KEY = "curr_user"
@@ -21,6 +21,7 @@ app.config['SQLALCHEMY_ECHO'] = False
 app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
+bcrypt = Bcrypt(app)
 
 connect_db(app)
 
@@ -216,9 +217,29 @@ def stop_following(follow_id):
 @app.route('/users/profile', methods=["GET", "POST"])
 def profile():
     """Update profile for current user."""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
 
-    # IMPLEMENT THIS
+    form = UserEditForm(obj=g.user)
 
+    if form.validate_on_submit():
+        if bcrypt.check_password_hash(g.user.password, form.password.data):
+
+            g.user.username = form.username.data
+            g.user.email = form.email.data
+            g.user.image_url = form.image_url.data
+            g.user.header_image_url = form.header_image_url.data
+            g.user.bio = form.bio.data
+            db.session.commit()
+
+            flash("Profile updated!", "success")
+            return redirect(f"/users/{g.user.username}") 
+        else:
+            flash("Incorrect password. Profile not updated.", "danger")
+            return render_template("users/edit.html", form=form, user_id=g.user.id)
+        
+    return render_template("users/edit.html", form=form, user_id=g.user.id)
 
 @app.route('/users/delete', methods=["POST"])
 def delete_user():
