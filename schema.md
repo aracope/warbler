@@ -1,3 +1,5 @@
+# Database Schema Diagram
+
 ```mermaid
 erDiagram
 
@@ -35,4 +37,4 @@ erDiagram
         int user_id FK
         int message_id FK
     }
-    ```
+```
