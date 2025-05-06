@@ -1,0 +1,19 @@
+*.pyo
+*.pyd
+.env.*
+*.sqlite3
+*.db
+.DS_Store
+.idea/
+.vscode/
+*.log
+# Python
+*.pyc
+__pycache__/
+
+# Environment
+.env
+
+# Virtualenv
+venv/
+.venv/
