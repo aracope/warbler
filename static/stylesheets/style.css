@@ -212,6 +212,13 @@ nav + .container {
   right: 50%;
 }
 
+.profile-header-img {
+  background-size: cover;
+  background-position: center;
+  height: 200px;
+  width: 100%;
+}
+
 .row.full-width {
   background-color: #fff;
   margin-top: -80px;
