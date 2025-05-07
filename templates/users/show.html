@@ -1,12 +1,13 @@
 {% extends 'users/detail.html' %}
 {% block user_details %}
   <div class="col-sm-6">
+    <h3>Liked Warbles: {{ user.likes|length }}</h3>
+    <a href="{{ url_for('liked_messages', user_id=user.id) }}">View Liked Warbles</a>
+    
     <ul class="list-group" id="messages">
-
       {% for message in messages %}
-
         <li class="list-group-item">
-          <a href="/messages/{{ message.id }}" class="message-link"/>
+          <a href="/messages/{{ message.id }}" class="message-link">
 
           <a href="/users/{{ user.id }}">
             <img src="{{ user.image_url }}" alt="user image" class="timeline-image">

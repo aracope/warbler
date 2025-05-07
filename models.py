@@ -44,10 +44,11 @@ class Likes(db.Model):
 
     message_id = db.Column(
         db.Integer,
-        db.ForeignKey('messages.id', ondelete='cascade'),
-        unique=True
+        db.ForeignKey('messages.id', ondelete='cascade')
     )
-
+    
+    user = db.relationship('User', backref=db.backref('likes', cascade="all, delete-orphan"))
+    message = db.relationship('Message', backref=db.backref('liked_by', cascade="all, delete-orphan"))
 
 class User(db.Model):
     """User in the system."""

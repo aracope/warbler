@@ -29,10 +29,10 @@
           </li>
           <li class="stat">
             <p class="small">Likes</p>
-            <h4>TBD</h4>
+            <h4><a href="/users/{{ user.id }}/likes">{{ user.liked_messages | length }}</a></h4>
           </li>
           <div class="ml-auto">
-            {% if g.user.id == user.id %}
+            {% if g.user and g.user.id == user.id %}
             <a href="/users/profile" class="btn btn-outline-secondary">Edit Profile</a>
             <form method="POST" action="/users/delete" class="form-inline">
               <button class="btn btn-outline-danger ml-2">Delete Profile</button>
@@ -62,9 +62,20 @@
     <p class="user-location"><span class="fa fa-map-marker"></span>{{ user.location }}</p>
   </div>
 
-  {% block user_details %}
-  {% endblock %}
-
+  <div class="col-md-9">
+    <h4>{{ user.username }}'s Liked Warbles</h4>
+    <ul class="list-group">
+      {% for message in user.liked_messages %}
+      <li class="list-group-item">
+        <a href="{{ url_for('users_show', user_id=message.user.id) }}">
+          @{{ message.user.username }}
+        </a>:
+        {{ message.text }}
+        <a href="{{ url_for('messages_show', message_id=message.id) }}">View</a>
+      </li>
+      {% endfor %}
+    </ul>
+  </div>
 </div>
 
 {% endblock %}

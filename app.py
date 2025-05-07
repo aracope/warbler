@@ -35,8 +35,8 @@ def add_user_to_g():
     """If we're logged in, add curr user to Flask global."""
 
     if CURR_USER_KEY in session:
-        g.user = User.query.get(session[CURR_USER_KEY])
-
+        user = User.query.get(session[CURR_USER_KEY])
+        g.user = user if user else None
     else:
         g.user = None
 
@@ -151,13 +151,14 @@ def users_show(user_id):
 
     # snagging messages in order from the database;
     # user.messages won't be in order by default
-    messages = (Message
-                .query
-                .filter(Message.user_id == user_id)
-                .order_by(Message.timestamp.desc())
-                .limit(100)
-                .all())
-    return render_template('users/show.html', user=user, messages=messages)
+    # messages = (Message
+    #             .query
+    #             .filter(Message.user_id == user_id)
+    #             .order_by(Message.timestamp.desc())
+    #             .limit(100)
+    #             .all())
+    liked_messages = user.likes
+    return render_template('users/show.html', user=user, liked_messages=liked_messages)
 
 
 @app.route('/users/<int:user_id>/following')
@@ -234,7 +235,7 @@ def profile():
             db.session.commit()
 
             flash("Profile updated!", "success")
-            return redirect(f"/users/{g.user.username}") 
+            return redirect(f"/users/{g.user.user.id}") 
         else:
             flash("Incorrect password. Profile not updated.", "danger")
             return render_template("users/edit.html", form=form, user_id=g.user.id)
@@ -259,6 +260,56 @@ def delete_user():
 
 ##############################################################################
 # Messages routes:
+@app.route('/users/<int:user_id>/liked')
+def liked_messages(user_id):
+    """Page showing all liked warbles for a user."""
+    user = User.query.get_or_404(user_id)
+
+    # Get the user's liked messages
+    liked_messages = user.likes
+
+    return render_template('users/liked_messages.html', user=user, liked_messages=liked_messages)
+
+@app.route('/messages/<int:message_id>/like', methods=["POST"])
+def like_message(message_id):
+    """Like a message"""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    message = Message.query.get_or_404(message_id)
+
+    # Check if the user has already liked the message
+    if message not in g.user.likes:
+        # Add like
+        g.user.likes.append(message)
+        db.session.commit()
+        flash("You liked this message!", "success")
+    else:
+        flash("You already liked this message.", "info")
+
+    return redirect(f"/messages/{message_id}")
+
+@app.route('/messages/<int:message_id>/unlike', methods=["POST"])
+def unlike_message(message_id):
+    """Unlike a message"""
+    if not g.user:
+        flash("Access unauthorized.", "danger")
+        return redirect("/")
+
+    message = Message.query.get_or_404(message_id)
+
+    # Check if the user has already liked the message
+    if g.user in message.liked_by:
+        # Remove like
+        message.liked_by.remove(g.user)
+        db.session.commit()
+        flash("You unliked this message.", "success")
+    else:
+        flash("You haven't liked this message yet.", "info")
+
+    return redirect(f"/messages/{message_id}")
+
 
 @app.route('/messages/new', methods=["GET", "POST"])
 def messages_add():

@@ -42,14 +42,22 @@
       <ul class="list-group" id="messages">
         {% for msg in messages %}
           <li class="list-group-item">
-            <a href="/messages/{{ msg.id  }}" class="message-link"/>
-            <a href="/users/{{ msg.user.id }}">
+            <a href="/messages/{{ msg.id }}" class="message-link">
               <img src="{{ msg.user.image_url }}" alt="" class="timeline-image">
             </a>
             <div class="message-area">
               <a href="/users/{{ msg.user.id }}">@{{ msg.user.username }}</a>
               <span class="text-muted">{{ msg.timestamp.strftime('%d %B %Y') }}</span>
-              <p>{{ msg.text }}</p>
+              <div class="message">
+                <p>{{ msg.text }}</p>
+                {% if g.user %}
+                {% if msg.id in likes %}
+                    <span>★</span> <!-- Star symbol for liked message -->
+                  {% else %}
+                    <span>☆</span> <!-- Empty star for unliked message -->
+                  {% endif %}
+                {% endif %}
+              </div>
             </div>
             <form method="POST" action="/users/add_like/{{ msg.id }}" id="messages-form">
               <button class="
