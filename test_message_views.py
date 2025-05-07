@@ -51,23 +51,73 @@ class MessageViewTestCase(TestCase):
 
         db.session.commit()
 
-    def test_add_message(self):
-        """Can use add a message?"""
+    def tearDown(self):
+        """Rollback changes after each test."""
+        db.session.rollback()
 
-        # Since we need to change the session to mimic logging in,
-        # we need to use the changing-session trick:
+    def test_add_message(self):
+        """Test if a user can add a new message."""
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            resp = c.post("/messages/new", data={"text": "Hello"})
+            self.assertEqual(resp.status_code, 302)  # Redirect after posting
+
+            msg = Message.query.one()
+            self.assertEqual(msg.text, "Hello")  # Check the message in DB
+
+    def test_add_message_no_user(self):
+        """Test if adding a message fails when not logged in."""
+        with self.client as c:
+            resp = c.post("/messages/new", data={"text": "Unauthorized"})
+            self.assertEqual(resp.status_code, 302)  # Should redirect to login
+            self.assertIn(b"login", resp.data)  # Check that redirect is to login page
+
+    def test_delete_message(self):
+        """Test if a user can delete their own message."""
+        msg = Message(text="Message to delete", user_id=self.testuser.id)
+        db.session.add(msg)
+        db.session.commit()
 
         with self.client as c:
             with c.session_transaction() as sess:
                 sess[CURR_USER_KEY] = self.testuser.id
 
-            # Now, that session setting is saved, so we can have
-            # the rest of ours test
+            resp = c.post(f"/messages/{msg.id}/delete", follow_redirects=True)
+            self.assertEqual(resp.status_code, 200)
+            self.assertNotIn(b"Message to delete", resp.data)  # Check message is deleted
 
-            resp = c.post("/messages/new", data={"text": "Hello"})
+    def test_delete_message_not_owner(self):
+        """Test if a user cannot delete another user's message."""
+        msg = Message(text="Another user's message", user_id=self.testuser.id)
+        user2 = User.signup("testuser2", "test2@test.com", "testuser2", None)
+        db.session.commit()
+        
+        db.session.add(msg)
+        db.session.commit()
 
-            # Make sure it redirects
-            self.assertEqual(resp.status_code, 302)
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = user2.id  # Log in as a different user
 
-            msg = Message.query.one()
-            self.assertEqual(msg.text, "Hello")
+            resp = c.post(f"/messages/{msg.id}/delete", follow_redirects=True)
+            self.assertEqual(resp.status_code, 403)  # Forbidden to delete someone else's message
+
+    def test_message_likes(self):
+        """Test if a user can like and unlike a message."""
+        msg = Message(text="Like me", user_id=self.testuser.id)
+        db.session.add(msg)
+        db.session.commit()
+
+        with self.client as c:
+            with c.session_transaction() as sess:
+                sess[CURR_USER_KEY] = self.testuser.id
+
+            # Like the message
+            resp = c.post(f"/messages/{msg.id}/like", follow_redirects=True)
+            self.assertIn(b"liked", resp.data)
+
+            # Unlike the message
+            resp = c.post(f"/messages/{msg.id}/like", follow_redirects=True)
+            self.assertIn(b"unliked", resp.data)

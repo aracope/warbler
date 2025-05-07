@@ -61,24 +61,26 @@ class User(db.Model):
     )
 
     email = db.Column(
-        db.Text,
+        db.String(100),
         nullable=False,
         unique=True,
     )
 
     username = db.Column(
-        db.Text,
+        db.String(50),
         nullable=False,
-        unique=True,
+        unique=True
     )
 
     image_url = db.Column(
-        db.Text,
-        default="/static/images/default-pic.png",
+        db.String(50),
+        nullable=True,
+        default="/static/images/default-pic.png"
     )
 
     header_image_url = db.Column(
         db.Text,
+         nullable=True,
         default="/static/images/warbler-hero.jpg"
     )
 
@@ -111,11 +113,6 @@ class User(db.Model):
         secondaryjoin=(Follows.user_being_followed_id == id)
     )
 
-    likes = db.relationship(
-        'Message',
-        secondary="likes"
-    )
-
     def __repr__(self):
         return f"<User #{self.id}: {self.username}, {self.email}>"
 
@@ -132,7 +129,7 @@ class User(db.Model):
         return len(found_user_list) == 1
 
     @classmethod
-    def signup(cls, username, email, password, image_url):
+    def signup(cls, username, email, password, image_url=None, header_image_url=None):
         """Sign up user.
 
         Hashes password and adds user to system.
@@ -144,8 +141,11 @@ class User(db.Model):
             username=username,
             email=email,
             password=hashed_pwd,
-            image_url=image_url,
+            image_url=image_url or "/static/images/default-pic.png",
         )
+
+        if header_image_url is not None:
+            user.header_image_url = header_image_url
 
         db.session.add(user)
         return user
