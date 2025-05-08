@@ -1,11 +1,9 @@
 import os
-
 from flask import Flask, render_template, request, flash, redirect, session, g
 from flask_debugtoolbar import DebugToolbarExtension
 from sqlalchemy.exc import IntegrityError
-from flask_bcrypt import Bcrypt
 from forms import UserAddForm, LoginForm, MessageForm, UserEditForm
-from models import db, connect_db, User, Message
+from models import db, connect_db, User, Message, Likes, bcrypt
 
 CURR_USER_KEY = "curr_user"
 
@@ -18,14 +16,13 @@ app.config['SQLALCHEMY_DATABASE_URI'] = (
 
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 app.config['SQLALCHEMY_ECHO'] = False
-app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = True
+app.config['DEBUG_TB_INTERCEPT_REDIRECTS'] = False
 app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', "it's a secret")
 toolbar = DebugToolbarExtension(app)
-bcrypt = Bcrypt(app)
 
 connect_db(app)
-
-
+bcrypt.init_app(app)
+db.create_all()
 ##############################################################################
 # User signup/login/logout
 
@@ -103,7 +100,7 @@ def login():
         if user:
             do_login(user)
             flash(f"Hello, {user.username}!", "success")
-            return redirect("/")
+            return redirect(f"/users/{user.id}")
 
         flash("Invalid credentials.", 'danger')
 
@@ -235,7 +232,7 @@ def profile():
             db.session.commit()
 
             flash("Profile updated!", "success")
-            return redirect(f"/users/{g.user.user.id}") 
+            return redirect(f"/users/{g.user.id}") 
         else:
             flash("Incorrect password. Profile not updated.", "danger")
             return render_template("users/edit.html", form=form, user_id=g.user.id)
@@ -272,52 +269,30 @@ def liked_messages(user_id):
 
 @app.route('/messages/<int:message_id>/like', methods=["POST"])
 def like_message(message_id):
-    """Like a message"""
+    """Like or unlike a message depending on the current state."""
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
 
-    message = Message.query.get_or_404(message_id)
+    liked_message = Message.query.get_or_404(message_id)
 
     # Check if the user has already liked the message
-    if message not in g.user.likes:
-        # Add like
-        g.user.likes.append(message)
-        db.session.commit()
-        flash("You liked this message!", "success")
-    else:
-        flash("You already liked this message.", "info")
+    like = Likes.query.filter_by(user_id=g.user.id, message_id=message_id).first()
 
-    return redirect(f"/messages/{message_id}")
-
-@app.route('/messages/<int:message_id>/unlike', methods=["POST"])
-def unlike_message(message_id):
-    """Unlike a message"""
-    if not g.user:
-        flash("Access unauthorized.", "danger")
-        return redirect("/")
-
-    message = Message.query.get_or_404(message_id)
-
-    # Check if the user has already liked the message
-    if g.user in message.liked_by:
-        # Remove like
-        message.liked_by.remove(g.user)
-        db.session.commit()
+    if like:
+        db.session.delete(like)
         flash("You unliked this message.", "success")
     else:
-        flash("You haven't liked this message yet.", "info")
+        new_like = Likes(user_id=g.user.id, message_id=message_id)
+        db.session.add(new_like)
+        flash("You liked this message!", "success")
 
-    return redirect(f"/messages/{message_id}")
-
+    db.session.commit()
+    return redirect("/")
 
 @app.route('/messages/new', methods=["GET", "POST"])
 def messages_add():
-    """Add a message:
-
-    Show form if GET. If valid, update message and redirect to user page.
-    """
-
+    """Add a message: Show form if GET. If valid, update message and redirect to user page."""
     if not g.user:
         flash("Access unauthorized.", "danger")
         return redirect("/")
@@ -328,9 +303,10 @@ def messages_add():
         msg = Message(text=form.text.data)
         g.user.messages.append(msg)
         db.session.commit()
+        flash("Message posted!", "success")
+        return redirect(f"/users/{g.user.id}")  # <-- Redirect (302)
 
-        return redirect(f"/users/{g.user.id}")
-
+    print("Form Errors:", form.errors)  # <-- Debugging line
     return render_template('messages/new.html', form=form)
 
 

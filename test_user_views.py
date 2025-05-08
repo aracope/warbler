@@ -26,9 +26,16 @@ class UserViewsTestCase(TestCase):
         db.session.rollback()
 
     def test_login(self):
+        """Test user login."""
+    
         with self.client as c:
-            resp = c.post("/login", data={"username": "testuser", "password": "testuser"})
-            self.assertEqual(resp.status_code, 302)
+            resp = c.post("/login", data={
+                "username": self.testuser.username,
+                "password": "testuser"
+        }, follow_redirects=True)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn("Hello, testuser!", resp.get_data(as_text=True))
 
     def test_profile_edit_form_display(self):
         with self.client as c:

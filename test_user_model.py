@@ -7,7 +7,7 @@
 
 import os
 from unittest import TestCase
-from app import app, CURR_USER_KEY
+from app import app
 from models import db, User, Message, Follows, Likes
 
 # Use test database

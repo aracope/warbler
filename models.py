@@ -1,13 +1,10 @@
 """SQLAlchemy models for Warbler."""
-
 from datetime import datetime
-
 from flask_bcrypt import Bcrypt
 from flask_sqlalchemy import SQLAlchemy
 
-bcrypt = Bcrypt()
 db = SQLAlchemy()
-
+bcrypt = Bcrypt()
 
 class Follows(db.Model):
     """Connection of a follower <-> followed_user."""
@@ -46,9 +43,6 @@ class Likes(db.Model):
         db.Integer,
         db.ForeignKey('messages.id', ondelete='cascade')
     )
-    
-    user = db.relationship('User', backref=db.backref('likes', cascade="all, delete-orphan"))
-    message = db.relationship('Message', backref=db.backref('liked_by', cascade="all, delete-orphan"))
 
 class User(db.Model):
     """User in the system."""
@@ -97,6 +91,11 @@ class User(db.Model):
         nullable=False,
     )
 
+    # Establishing the many-to-many relationship with Messages through Likes
+    likes = db.relationship('Message',
+                            secondary='likes',
+                            backref='liked_by')
+
     messages = db.relationship('Message')
 
     followers = db.relationship(
@@ -116,17 +115,13 @@ class User(db.Model):
     def __repr__(self):
         return f"<User #{self.id}: {self.username}, {self.email}>"
 
-    def is_followed_by(self, other_user):
-        """Is this user followed by `other_user`?"""
+    def is_following(self, user):
+        """Is this user following `user`?"""
+        return user in self.following
 
-        found_user_list = [user for user in self.followers if user == other_user]
-        return len(found_user_list) == 1
-
-    def is_following(self, other_user):
-        """Is this user following `other_use`?"""
-
-        found_user_list = [user for user in self.following if user == other_user]
-        return len(found_user_list) == 1
+    def is_followed_by(self, user):
+        """Is this user followed by `user`?"""
+        return user in self.followers
 
     @classmethod
     def signup(cls, username, email, password, image_url=None, header_image_url=None):
@@ -163,10 +158,8 @@ class User(db.Model):
 
         user = cls.query.filter_by(username=username).first()
 
-        if user:
-            is_auth = bcrypt.check_password_hash(user.password, password)
-            if is_auth:
-                return user
+        if user and bcrypt.check_password_hash(user.password, password):
+            return user
 
         return False
 
